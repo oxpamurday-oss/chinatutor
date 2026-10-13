@@ -9,3 +9,9 @@
 - Прогресс: localStorage на устройстве
 
 Запуск локально: `python3 -m http.server`
+
+## Telegram
+
+- Кнопка запуска: в @BotFather → бот → Bot Settings → Menu Button → URL `https://oxpamurday-oss.github.io/chinatutor/`.
+- Напоминания: `.github/workflows/remind.yml` каждый день в 09:00 МСК шлёт сообщение с кнопкой «Открыть учебник».
+  Нужны секреты репозитория `TELEGRAM_TOKEN` и `TELEGRAM_CHAT_ID`; дата выставки в переменной `FIC_DATE` (по умолчанию 2027-03-15).
