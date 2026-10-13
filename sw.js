@@ -1,5 +1,5 @@
 // Offline cache. Bump VERSION when any file changes so phones pick up the update.
-var VERSION = "v1";
+var VERSION = "v2";
 var FILES = ["./", "index.html", "style.css", "data.js", "app.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));

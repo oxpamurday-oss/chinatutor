@@ -157,4 +157,34 @@ button:focus-visible, .tap:focus-visible { outline: 3px solid var(--accent); out
 .seg { display: flex; gap: 6px; }
 .seg button { flex: 1; border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 10px 4px; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.plan {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.plan-head b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.lesson-link {
+  border: 0; background: transparent; padding: 0; text-align: left; color: var(--accent); font-size: 1rem;
+}
+.dialogue { display: flex; flex-direction: column; gap: 8px; }
+.dialogue-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.line {
+  display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px;
+}
+.line.b { margin-left: 24px; width: calc(100% - 24px); }
+.line .who {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 0.8rem; font-weight: 700; background: var(--line); color: var(--muted);
+}
+.line.a .who { background: var(--accent); color: var(--accent-ink); }
+.line .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.line .hz { font-size: 1.25rem; }
+.line .py { font-size: 0.9rem; }
+.line .ru { color: var(--muted); font-size: 0.85rem; }
+.setting input[type="date"] {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+.loading { color: var(--muted); text-align: center; padding-block: 40vh 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

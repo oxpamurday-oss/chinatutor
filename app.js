@@ -17,6 +17,8 @@
     s.cards = s.cards || {};      // key -> { box, due }
     s.lessons = s.lessons || {};  // lessonId -> { best }
     s.settings = s.settings || { rate: 0.8, pinyin: true };
+    if (!s.settings.fic) s.settings.fic = "2027-03-15";
+    if (!s.started) s.started = today();
     return s;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -51,23 +53,34 @@
   }
 
   // ---------- speech ----------
-  var voice = null;
+  var voice = null, voice2 = null;
   var hasSpeech = "speechSynthesis" in window;
   function findVoice() {
     if (!hasSpeech) return;
     var vs = speechSynthesis.getVoices();
-    voice = vs.find(function (v) { return /^zh[-_]CN/i.test(v.lang); }) ||
-            vs.find(function (v) { return /^zh/i.test(v.lang); }) || null;
+    var cn = vs.filter(function (v) { return /^zh[-_]CN/i.test(v.lang); });
+    if (!cn.length) cn = vs.filter(function (v) { return /^zh/i.test(v.lang); });
+    voice = cn[0] || null;
+    voice2 = cn[1] || voice;
   }
   if (hasSpeech) { findVoice(); speechSynthesis.onvoiceschanged = findVoice; }
-  function say(text) {
-    if (!hasSpeech) return;
-    speechSynthesis.cancel();
+  function utter(text, v) {
     var u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-CN";
-    if (voice) u.voice = voice;
+    if (v) u.voice = v;
     u.rate = state.settings.rate;
-    speechSynthesis.speak(u);
+    return u;
+  }
+  function say(text, alt) {
+    if (!hasSpeech) return;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter(text, alt ? voice2 : voice));
+  }
+  // Queue every line of a dialogue; speaker B gets the second voice when the phone has one.
+  function sayDialogue(lines) {
+    if (!hasSpeech) return;
+    speechSynthesis.cancel();
+    lines.forEach(function (ln) { speechSynthesis.speak(utter(ln.h, ln.s === "B" ? voice2 : voice)); });
   }
 
   // ---------- SRS ----------
@@ -103,15 +116,22 @@
 
   function home() {
     var due = dueItems().length, total = vocabItems().length, learned = learnedCount();
-    var list = COURSE.map(function (l, i) {
+    var lastSection = null, list = "";
+    COURSE.forEach(function (l, i) {
       var best = (state.lessons[l.id] || {}).best;
       var cls = best >= 80 ? "done" : best != null ? "started" : "";
-      return '<li><button class="lesson ' + cls + '" data-go="lesson" data-id="' + l.id + '">' +
+      if (l.section !== lastSection) {
+        if (lastSection !== null) list += "</ul>";
+        list += '<div class="section-label">' + esc(l.section) + '</div><ul class="lessons">';
+        lastSection = l.section;
+      }
+      list += '<li><button class="lesson ' + cls + '" data-go="lesson" data-id="' + l.id + '">' +
         '<span class="num">' + (i + 1) + '</span>' +
         '<span class="txt"><b>' + esc(l.title) + "</b><span>" + esc(l.hint) + "</span></span>" +
         (best != null ? '<span class="pct">' + best + "%</span>" : "") +
         "</button></li>";
-    }).join("");
+    });
+    list += "</ul>";
     return '<header class="top"><div class="brand"><span class="hz">汉语</span><small>к выставке FIC</small></div>' +
       '<button class="icon-btn" data-go="settings" aria-label="Настройки">⚙︎</button></header>' +
       voiceWarning() +
@@ -120,8 +140,32 @@
       '<div class="stat"><b>' + due + "</b><span>на повторение сегодня</span></div>" +
       '<button class="btn" data-go="review"' + (due ? "" : " disabled") + ">" +
       (due ? "Повторить " + due : "Сегодня повторять нечего") + "</button></section>" +
-      '<div class="section-label">Уроки</div><ul class="lessons">' + list + "</ul>" +
+      planCard() + list +
       '<p class="note">Прогресс хранится на этом телефоне и работает без интернета.</p>';
+  }
+
+  // One lesson a week from the first launch; the rest of the week is review.
+  function planCard() {
+    var fic = new Date(state.settings.fic + "T00:00:00").getTime();
+    var daysLeft = Math.max(0, Math.round((fic - today()) / DAY));
+    var weeksTotal = Math.max(1, Math.ceil((fic - state.started) / (7 * DAY)));
+    var week = Math.floor((today() - state.started) / (7 * DAY));
+    var ahead = COURSE.find(function (l) { return !((state.lessons[l.id] || {}).best >= 80); });
+    var due = COURSE[Math.min(Math.floor(week * COURSE.length / weeksTotal), COURSE.length - 1)];
+    var behind = ahead && COURSE.indexOf(ahead) < COURSE.indexOf(due);
+    var next = ahead
+      ? '<button class="lesson-link" data-go="lesson" data-id="' + ahead.id + '">Следующий урок: <b>' + esc(ahead.title) + "</b></button>"
+      : "<p>Все уроки пройдены. Повторяйте каждый день до выставки.</p>";
+    return '<section class="plan"><div class="plan-head"><span class="section-label">До FIC</span><b>' + daysLeft + " " + plural(daysLeft, "день", "дня", "дней") + "</b></div>" +
+      next +
+      '<p class="note">' + (behind ? "По плану вы должны быть на уроке «" + esc(due.title) + "». Пройдите два урока на этой неделе."
+                                   : "Вы идёте по плану: один урок в неделю и повторение каждый день.") + "</p></section>";
+  }
+  function plural(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
   }
 
   function voiceWarning() {
@@ -142,8 +186,21 @@
     var learnBtn = l.type === "vocab" ? '<button class="btn ghost" data-go="learn" data-id="' + l.id + '">Карточки</button>' : "";
     return '<header class="top"><button class="icon-btn" data-go="home" aria-label="Назад">←</button><h2>' + esc(l.title) + "</h2></header>" +
       '<section class="theory">' + l.theory + "</section>" +
+      dialogueHtml(l) +
       '<div class="row">' + learnBtn + '<button class="btn" data-go="quiz" data-id="' + l.id + '">Тест</button></div>' +
       '<div class="section-label">Нажмите, чтобы услышать</div><div class="items">' + items + "</div>";
+  }
+
+  function dialogueHtml(l) {
+    if (!l.dialogue) return "";
+    var lines = l.dialogue.map(function (ln, i) {
+      return '<button class="line ' + (ln.s === "B" ? "b" : "a") + '" data-line="' + i + '"><span class="who">' + ln.s + "</span>" +
+        '<span class="body"><span class="hz">' + esc(ln.h) + "</span>" +
+        (state.settings.pinyin ? '<span class="py">' + pinyinHtml(ln.p) + "</span>" : "") +
+        '<span class="ru">' + esc(ln.r) + "</span></span></button>";
+    }).join("");
+    return '<section class="dialogue"><div class="dialogue-head"><span class="section-label">Диалог</span>' +
+      '<button class="speak" data-act="play-dialogue">▶ Весь диалог</button></div>' + lines + "</section>";
   }
 
   // Learn: flip through cards one by one; finishing adds them to review.
@@ -263,6 +320,9 @@
       '<button class="' + (state.settings.pinyin ? "on" : "") + '" data-pinyin="1">Показывать</button>' +
       '<button class="' + (!state.settings.pinyin ? "on" : "") + '" data-pinyin="0">Скрывать</button></div>' +
       '<p class="note">Скрывайте, когда начнёте узнавать иероглифы. Так быстрее учится чтение.</p></div>' +
+      '<div class="setting"><label for="fic-date"><b>Дата выставки FIC</b></label>' +
+      '<input id="fic-date" type="date" value="' + esc(state.settings.fic) + '">' +
+      '<p class="note">По ней считается план и отсчёт на главном экране.</p></div>' +
       '<div class="setting"><b>Прогресс</b><p class="note">Выучено слов: ' + learnedCount() + '.</p>' +
       (screen.confirm ? '<div class="row"><button class="btn ghost" data-act="reset-no">Отмена</button><button class="btn" data-act="reset-yes">Да, стереть</button></div>'
                       : '<button class="btn ghost" data-act="reset">Сбросить прогресс</button>') + "</div></div>";
@@ -276,6 +336,7 @@
     if (d.go) { var s = { name: d.go }; if (d.id) s.id = d.id; go(s); return; }
     if (d.say != null) { say(lessonById(screen.id).items[+d.say].h); return; }
     if (d.speak) { say(d.speak); return; }
+    if (d.line != null) { var ln = lessonById(screen.id).dialogue[+d.line]; say(ln.h, ln.s === "B"); return; }
     if (d.pick != null) {
       var q = screen.qs[screen.i];
       screen.answered = true; screen.picked = d.pick;
@@ -303,11 +364,15 @@
         break;
       }
       case "next-q": screen.i++; screen.answered = false; render(); autoPlay(); break;
+      case "play-dialogue": sayDialogue(lessonById(screen.id).dialogue); break;
       case "show-review": screen.shown = true; render(); say(screen.queue[0].h); break;
       case "reset": screen.confirm = true; render(); break;
       case "reset-no": screen.confirm = false; render(); break;
       case "reset-yes": state.cards = {}; state.lessons = {}; save(); screen.confirm = false; render(); break;
     }
+  });
+  app.addEventListener("change", function (e) {
+    if (e.target.id === "fic-date" && e.target.value) { state.settings.fic = e.target.value; save(); }
   });
   // Listening questions play on their own when they appear.
   function autoPlay() {
@@ -321,6 +386,9 @@
   render();
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
+    // When an update installs, reload once so the new lessons show up right away.
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange", function () { if (hadController) location.reload(); });
     navigator.serviceWorker.register("sw.js").catch(function () {});
   }
 })();
