@@ -1,0 +1,22 @@
+name: Telegram reminder
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 09:00 Moscow time
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send reminder
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FIC_DATE: ${{ vars.FIC_DATE }}
+        run: |
+          if [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets are not set yet, skipping."; exit 0
+          fi
+          ./scripts/remind.sh
