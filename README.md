@@ -1,2 +1,11 @@
-# chinatutor
-personal learning 
+# 汉语 к FIC
+
+Офлайн-учебник китайского к выставке FIC. Статичное веб-приложение (PWA) без сборки.
+
+- `index.html`, `style.css`, `app.js` — приложение
+- `data.js` — уроки и слова (редактировать здесь)
+- `sw.js` — офлайн-кэш; при изменении файлов увеличить `VERSION`
+- Озвучка: встроенный голос iPhone (Web Speech API, zh-CN), работает без сети
+- Прогресс: localStorage на устройстве
+
+Запуск локально: `python3 -m http.server`
